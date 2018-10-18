@@ -29,28 +29,35 @@ def softmax_loss_naive(W, X, y, reg):
   # here, it is easy to run into numeric instability. Don't forget the        #
   # regularization!                                                           #
   #############################################################################
-  N = X.shape[0]
-  C = W.shape[1]
   D = W.shape[0]
-
+  C = W.shape[1]
+  N = X.shape[0]
+    
+  score = np.zeros((N,C))
+  out = np.zeros(N)
+    
   for i in range(N):
-    scores = X[i].dot(W) #(C, )
-    scores -= np.max(scores) #for numerical stability (http://cs231n.github.io/linear-classify/#softmax)
-    p = np.exp(scores) / np.sum(np.exp(scores)) #(C, )
+      for j in range(C):
+          for k in range(D):
+              score[i,j] += X[i,k] * W[k,j]
+      score[i] = np.exp(score[i])
+      score[i] /= np.sum(score[i])
+      out[i] += score[i,y[i]]
+
+      #gradient
+      # dw_j = 1/num_train * \sum_i[x_i * (p(y_i = j)-Ind{y_i = j} )]
+      score[i,y[i]] -= 1
+      for j in range(C):
+          for k in range(D):
+              dW[k,j] += X[i,k]*score[i,j]
     
-    loss -= np.log(p[y[i]])
-    
-    #dW
-    p[y[i]] -= 1
-    for j in range(C):
-        dW[:,j] += X[i,:] * p[j]
-    
-  loss /= N
+  loss -= np.sum(np.log(out)) 
+  loss /= N 
+  loss += reg * np.sum(W*W) * 0.5
+
   dW /= N
-    
-  loss += 0.5 * reg * np.sum(W * W)
-  dW += reg*W
-        
+  dW += reg * W
+
   #############################################################################
   #                          END OF YOUR CODE                                 #
   #############################################################################
@@ -74,24 +81,24 @@ def softmax_loss_vectorized(W, X, y, reg):
   # here, it is easy to run into numeric instability. Don't forget the        #
   # regularization!                                                           #
   #############################################################################
-  N = X.shape[0]
+  D = W.shape[0]
   C = W.shape[1]
-    
-  scores = np.dot(X, W) #(N,C)
-  scores -= np.max(scores)#for numerical stability
-  scores = np.exp(scores)
-  correct_score = scores[np.arange(N),y] #(N, )
-  p = scores / np.sum(scores, axis = 1, keepdims = True) #(N, C)
-  loss -= np.sum(np.log(p)[np.arange(N), y])
-  loss /= N
-  loss += 0.5*reg*np.sum(W*W)
+  N = X.shape[0]
 
-  #dW  (D, C)
-  dscores = p
-  dscores[np.arange(N), y] -= 1  #(N, C)
-  dW = np.dot(X.T, dscores) / N #(D, C)          
-  dW += reg*W
-  
+  score = np.zeros((N,C))
+  out = np.zeros(N)
+    
+  score = np.exp(X.dot(W)) #(N, C) / X -> (N, D) / W -> (D, C)
+  score /= np.sum(score, axis = 1, keepdims=True)
+  out += score[np.arange(N),y]
+  loss -= np.sum(np.log(out))
+  loss /= N
+  loss += reg * np.sum(W*W) * 0.5
+
+  score[np.arange(N),y] -= 1
+  dW = X.T.dot(score) #(D, C)
+  dW /= N
+  dW += reg * W
   #############################################################################
   #                          END OF YOUR CODE                                 #
   #############################################################################
