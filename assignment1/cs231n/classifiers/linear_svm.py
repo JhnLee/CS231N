@@ -64,7 +64,16 @@ def svm_loss_vectorized(W, X, y, reg):
   """
   Structured SVM loss function, vectorized implementation.
 
-  Inputs and outputs are the same as svm_loss_naive.
+    Inputs:
+  - W: A numpy array of shape (D, C) containing weights.
+  - X: A numpy array of shape (N, D) containing a minibatch of data.
+  - y: A numpy array of shape (N,) containing training labels; y[i] = c means
+    that X[i] has label c, where 0 <= c < C.
+  - reg: (float) regularization strength
+
+  Returns a tuple of:
+  - loss as single float
+  - gradient with respect to weights W; an array of same shape as W
   """
   loss = 0.0
   dW = np.zeros(W.shape) # initialize the gradient as zero
@@ -77,15 +86,12 @@ def svm_loss_vectorized(W, X, y, reg):
   
   C = W.shape[1]
   N = X.shape[0]
-
-  scores = np.dot(X, W) #(N, C)
-  correct_class_scores = scores[np.arange(N),y] #(N, )
-  margins = np.maximum(0,scores - correct_class_scores.reshape(N,1) + 1) #(N, C)
+  scores = X.dot(W) #(N, C)
+  correct_scores = scores[np.arange(N),y].reshape(-1,1)
+  margins = np.maximum(scores - correct_scores + 1, 0)
   margins[np.arange(N),y] = 0
-  loss = np.sum(margins) / N #sum of loss
-  loss += reg * np.sum(W*W)
+  loss = np.sum(margins) / N + reg * np.sum(W*W) * 0.5
   
-
   #############################################################################
   #                             END OF YOUR CODE                              #
   #############################################################################
@@ -100,12 +106,15 @@ def svm_loss_vectorized(W, X, y, reg):
   # to reuse some of the intermediate values that you used to compute the     #
   # loss.                                                                     #
   #############################################################################
-  dscores = np.zeros(scores.shape) #(N, C)
-  dscores[margins > 0] = 1
-  dscores[np.arange(N), y] -= np.sum(dscores, axis = 1)
-   
-  dW = np.dot(X.T, dscores) / N
-  dW += reg*W
+  
+  dscores = np.zeros_like(scores) # (N, C)
+  dscores[margins > 0] = 1  
+  dscores[np.arange(N),y] -= np.sum(dscores, axis=1) 
+
+  dW = np.dot(X.T, dscores) 
+  dW /= N
+  dW += reg * W
+
   #############################################################################
   #                             END OF YOUR CODE                              #
   #############################################################################
